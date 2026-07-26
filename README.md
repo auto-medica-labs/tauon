@@ -1,6 +1,7 @@
 # Tauon
 
-A minimal Python agent framework built on `tau-ai`.
+A minimal Python agent framework built on [`tau`](https://github.com/huggingface/tau).
+Think of it like [flue](https://github.com/withastro/flue) of `tau` instead of [pi](https://github.com/earendil-works/pi).
 
 ## Quick start
 
