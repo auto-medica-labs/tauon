@@ -63,3 +63,31 @@ async def test_run_agent_model_override() -> None:
     provider = FakeProvider(reply="ok")
     await run_agent(ModelAgent, "hi", provider=provider, model="test/new")
     # The fake provider ignores model, but the call should succeed.
+
+
+@pytest.mark.anyio
+async def test_run_agent_max_turns_passed_to_harness() -> None:
+    """run_agent should pass max_turns so the harness enforces a turn limit."""
+
+    @define_agent
+    def TurnAgent() -> str:
+        use_model("test/model")
+        return "instructions"
+
+    provider = FakeProvider(reply="done")
+    # Default max_turns is 25 — verify it doesn't interfere with a simple run.
+    result = await run_agent(TurnAgent, "hi", provider=provider)
+    assert result == "done"
+
+
+@pytest.mark.anyio
+async def test_run_agent_timeout_accepted() -> None:
+    """timeout parameter is accepted and does not break a fast call."""
+
+    @define_agent
+    def FastAgent() -> str:
+        use_model("test/model")
+        return "instructions"
+
+    result = await run_agent(FastAgent, "hi", provider=FakeProvider(reply="ok"), timeout=30)
+    assert result == "ok"

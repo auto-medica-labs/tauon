@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from typing import cast
 
@@ -56,8 +57,37 @@ async def run_agent(
     base_url: str | None = None,
     model: str | None = None,
     provider_name: str | None = None,
+    max_turns: int | None = 25,
+    timeout: float | None = None,
 ) -> str:
-    """Run one agent with one user message and return the assistant text."""
+    """Run one agent with one user message and return the assistant text.
+
+    Parameters
+    ----------
+    agent:
+        Agent function defined with ``@define_agent``.
+    message:
+        User message to send.
+    provider:
+        Injected provider (for tests / advanced usage).  When omitted Tau's
+        built-in catalog is used to resolve *provider_name* / *model*.
+    api_key:
+        Override the provider API key.
+    base_url:
+        Override the provider base URL.
+    model:
+        Override the model set by ``use_model()`` inside the agent.
+        When set, ``model=`` wins over ``use_model()``.
+        Supports ``provider/model`` syntax.
+    provider_name:
+        Provider name override (e.g. ``"openai"``, ``"anthropic"``).
+    max_turns:
+        Maximum tool-call turns before the agent is stopped.
+        ``None`` disables the limit.
+    timeout:
+        Maximum total wall-clock seconds before ``asyncio.TimeoutError``
+        is raised.  ``None`` disables the limit.
+    """
     frame = collect_frame(agent)
     raw_model = model or frame.model
     if not raw_model:
@@ -84,27 +114,37 @@ async def run_agent(
             model=resolved_model,
             system=system,
             tools=frame.tools,
+            max_turns=max_turns,
         )
     )
 
     try:
         text_parts: list[str] = []
         last_assistant: AssistantMessage | None = None
-        async for event in harness.prompt(message):
-            if isinstance(event, MessageUpdateEvent):
-                inner = event.assistant_message_event
-                if isinstance(inner, TextDeltaEvent):
-                    text_parts.append(inner.delta)
-            elif isinstance(event, MessageEndEvent) and isinstance(event.message, AssistantMessage):
-                last_assistant = event.message
-                # If the provider did not stream text deltas, fall back to the
-                # assembled assistant message text.
-                if not text_parts:
-                    text_parts.append(event.message.text)
-        if last_assistant is not None and last_assistant.error_message:
-            msg = f"Provider error: {last_assistant.error_message}"
-            raise RuntimeError(msg)
-        return "".join(text_parts)
+
+        async def _run() -> str:
+            nonlocal text_parts, last_assistant
+            async for event in harness.prompt(message):
+                if isinstance(event, MessageUpdateEvent):
+                    inner = event.assistant_message_event
+                    if isinstance(inner, TextDeltaEvent):
+                        text_parts.append(inner.delta)
+                elif isinstance(event, MessageEndEvent) and isinstance(
+                    event.message, AssistantMessage
+                ):
+                    last_assistant = event.message
+                    # If the provider did not stream text deltas, fall back to
+                    # the assembled assistant message text.
+                    if not text_parts:
+                        text_parts.append(event.message.text)
+            if last_assistant is not None and last_assistant.error_message:
+                msg = f"Provider error: {last_assistant.error_message}"
+                raise RuntimeError(msg)
+            return "".join(text_parts)
+
+        if timeout is not None:
+            return await asyncio.wait_for(_run(), timeout=timeout)
+        return await _run()
     finally:
         if close_provider:
             aclose = getattr(provider, "aclose", None)

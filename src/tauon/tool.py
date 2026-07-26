@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import typing
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol, cast
 
@@ -44,11 +45,27 @@ def define_tool[F: Callable[..., Any]](fn: F) -> AgentTool:
     """Turn a typed Python function into an agent tool."""
     tool_fn = cast(_ToolFn, fn)
     sig = inspect.signature(tool_fn)
+
+    # Reject *args and **kwargs — not representable as JSON schema params.
+    for _name, param in sig.parameters.items():
+        if param.kind is inspect.Parameter.VAR_POSITIONAL:
+            msg = f"Tool function {tool_fn.__name__!r} must not use *args"
+            raise TypeError(msg)
+        if param.kind is inspect.Parameter.VAR_KEYWORD:
+            msg = f"Tool function {tool_fn.__name__!r} must not use **kwargs"
+            raise TypeError(msg)
+
+    # Resolve postponed (string) annotations so Pydantic gets real types.
+    try:
+        hints = typing.get_type_hints(tool_fn)
+    except Exception:
+        hints = {}
+
     fields: dict[str, Any] = {}
     for name, param in sig.parameters.items():
-        annotation: type[Any] = (
-            param.annotation if param.annotation is not inspect.Parameter.empty else Any
-        )
+        annotation = hints.get(name, param.annotation)
+        if annotation is inspect.Parameter.empty:
+            annotation = Any
         default = param.default if param.default is not inspect.Parameter.empty else ...
         fields[name] = (annotation, default)
 

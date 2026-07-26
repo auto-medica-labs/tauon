@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import cast
+from typing import Any, cast
 
 import pytest
 
@@ -32,8 +32,6 @@ def test_define_tool_returns_agent_tool() -> None:
 
 
 def test_tool_schema_includes_parameters() -> None:
-    from typing import Any
-
     schema = sync_tool.parameters
     properties = cast(dict[str, Any], schema["properties"])
     required = cast(list[str], schema["required"])
@@ -62,3 +60,37 @@ def test_tool_description_from_docstring() -> None:
 
 def test_tool_without_docstring_has_empty_description() -> None:
     assert no_doc.description == ""
+
+
+def test_tool_with_postponed_annotations() -> None:
+    """from __future__ import annotations + Optional must not crash."""
+
+    @define_tool
+    def opt_tool(name: str, greeting: str | None = "Hi") -> str:
+        """Greet."""
+        return f"{greeting} {name}"
+
+    assert opt_tool.description == "Greet."
+    props = cast(dict[str, Any], opt_tool.parameters["properties"])
+    assert "greeting" in props
+    # Should allow null (Optional).
+    assert cast(dict[str, Any], props["greeting"])["anyOf"] == [
+        {"type": "string"},
+        {"type": "null"},
+    ]
+
+
+def test_tool_rejects_args() -> None:
+    with pytest.raises(TypeError, match=r"must not use \*args"):
+
+        @define_tool
+        def _bad(*args: str) -> None:
+            return None
+
+
+def test_tool_rejects_kwargs() -> None:
+    with pytest.raises(TypeError, match=r"must not use \*\*kwargs"):
+
+        @define_tool
+        def _bad(**kwargs: int) -> None:
+            return None

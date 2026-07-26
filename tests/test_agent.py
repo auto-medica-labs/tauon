@@ -65,3 +65,20 @@ def test_collect_frame_requires_model() -> None:
 
     frame = collect_frame(MyAgent)
     assert frame.model is None
+
+
+def test_duplicate_tool_raises() -> None:
+    @define_tool
+    def dup_tool(x: str) -> str:
+        """Dup."""
+        return x
+
+    @define_agent
+    def BadAgent() -> str:
+        use_model("test/model")
+        use_tool(dup_tool)
+        use_tool(dup_tool)  # same object, same name
+        return ""
+
+    with pytest.raises(RuntimeError, match="Duplicate tool.*dup_tool"):
+        collect_frame(BadAgent)

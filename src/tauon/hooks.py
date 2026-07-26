@@ -38,6 +38,10 @@ def use_tool(tool: AgentTool) -> None:
     if frame is None:
         msg = "use_tool must be called inside an agent function decorated with @define_agent"
         raise RuntimeError(msg)
+    for existing in frame.tools:
+        if existing.name == tool.name:
+            msg = f"Duplicate tool {tool.name!r} in agent render"
+            raise RuntimeError(msg)
     frame.tools.append(tool)
 
 
