@@ -98,6 +98,22 @@ Tauon stays a thin layer over `tau-ai`:
 
 Rendering is synchronous; execution is asynchronous. Each `run_agent()` call starts with a fresh frame and empty message history.
 
+## tau-ai SDK boundary
+
+`tau-ai` (the umbrella for `tau_agent`, `tau_ai`, `tau_coding`) is working toward a
+stable public SDK. Until that SDK is released, Tauon imports directly from those
+packages.
+
+**Strategy when the SDK lands:** all imports are updated in-place across the ~6 files
+that currently reference `tau_*` packages (`agent.py`, `tool.py`, `provider.py`,
+`hooks.py`, `_types.py`, `tests/conftest.py`). This is a mechanical,
+grep-able find-and-replace — no adapter layer or re-export module is added now
+because the SDK's actual API shape is unknown.
+
+Keeping this coupling visible (not hidden behind an abstraction) means the SDK
+adoption is a straightforward rename pass, not a rewrite of adapters that guessed
+wrong.
+
 ## Public API
 
 ```python

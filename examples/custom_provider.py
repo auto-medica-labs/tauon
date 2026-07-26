@@ -7,6 +7,8 @@ pointed at your endpoint.
     uv run python examples/custom_provider.py
 """
 
+import anyio
+
 from tauon import define_agent, run_agent, use_model
 
 
@@ -28,7 +30,7 @@ async def generic_endpoint() -> None:
         "Say hello in French.",
         api_key="llama.cpp",
         base_url="http://localhost:8080/v1",
-        model="LFM2.5-8B-A1B-Q4_K_M.gguf"
+        model="LFM2.5-8B-A1B-Q4_K_M.gguf",
     )
     print(f"Agent: {reply}")
 
@@ -36,7 +38,6 @@ async def generic_endpoint() -> None:
 # ===========================================================================
 # Run
 # ===========================================================================
-import anyio
 
 
 async def main() -> None:
