@@ -1,7 +1,7 @@
 # Tauon
 
 A minimal Python agent framework built on [`tau`](https://github.com/huggingface/tau).
-Think of it like [flue](https://github.com/withastro/flue) of `tau` instead of [pi](https://github.com/earendil-works/pi).
+Think of it like [`flue`](https://github.com/withastro/flue) of `tau` instead of [`pi`](https://github.com/earendil-works/pi).
 
 > **Beta software.** Tauon is a thin layer over tau-ai, which has not yet
 > published a stable public SDK. Until that SDK is released, internal APIs may
