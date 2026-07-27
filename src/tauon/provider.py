@@ -3,16 +3,38 @@
 from __future__ import annotations
 
 from os import environ
+from typing import Any
 
 from tau_agent.provider import ModelProvider
 from tau_ai.env import DEFAULT_OPENAI_COMPATIBLE_BASE_URL, OpenAICompatibleConfig
 from tau_ai.openai_compatible import OpenAICompatibleProvider
+from tau_coding.credentials import FileCredentialStore
 from tau_coding.provider_config import (
     ProviderConfigError,
-    load_provider_settings,
+    ProviderSettings,
     resolve_provider_selection,
 )
 from tau_coding.provider_runtime import create_model_provider
+
+
+class _NoOpCredentialStore(FileCredentialStore):
+    """Credential store that never returns saved credentials."""
+
+    def _load(self) -> dict[str, Any]:
+        return {}
+
+
+_NO_OP_STORE = _NoOpCredentialStore()
+
+
+def _try_create_provider(settings, **kwargs) -> ModelProvider:
+    """Resolve and instantiate a model provider from Tau's catalog."""
+    selection = resolve_provider_selection(settings, **kwargs)
+    return create_model_provider(
+        selection.provider,
+        model=selection.model,
+        credential_store=_NO_OP_STORE,
+    )
 
 
 def _simple_openai_provider(
@@ -41,10 +63,13 @@ def default_provider(
 ) -> ModelProvider:
     """Create a provider using Tau's built-in catalog.
 
-    Resolves the provider and model the same way Tau does, so any model usable
-    in Tau is usable in Tauon without manual endpoint or reasoning-effort
-    configuration. ``OPENAI_API_KEY``/``ANTHROPIC_API_KEY``/etc. are read from
-    the environment by the catalog runtime.
+    Resolves the provider and model from Tau's built-in provider catalog.
+    API keys are read from environment variables only; saved Tau credentials
+    (``~/.tau/credentials.json``) and provider preferences
+    (``~/.tau/providers.json``) are ignored.
+
+    ``OPENAI_API_KEY``/``ANTHROPIC_API_KEY``/``OPENAI_CODEX_ACCESS_TOKEN``/etc.
+    are read from the environment by the catalog runtime.
 
     Explicit ``base_url`` or ``api_key`` fall back to a plain
     OpenAI-compatible provider when the model is not in Tau's catalog.
@@ -52,7 +77,7 @@ def default_provider(
     has_override = api_key is not None or base_url is not None
 
     if model and not has_override:
-        settings = load_provider_settings()
+        settings = ProviderSettings()
         target_provider = provider_name
         target_model = model
 
@@ -63,14 +88,10 @@ def default_provider(
 
         if target_provider is not None and target_model is not None:
             try:
-                selection = resolve_provider_selection(
+                return _try_create_provider(
                     settings,
                     provider_name=target_provider,
                     model=target_model,
-                )
-                return create_model_provider(
-                    selection.provider,
-                    model=selection.model,
                 )
             except ProviderConfigError:
                 if provider_name is not None:
@@ -79,13 +100,9 @@ def default_provider(
 
         if target_model is not None:
             try:
-                selection = resolve_provider_selection(
+                return _try_create_provider(
                     settings,
                     model=target_model,
-                )
-                return create_model_provider(
-                    selection.provider,
-                    model=selection.model,
                 )
             except ProviderConfigError:
                 pass

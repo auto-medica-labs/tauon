@@ -239,11 +239,11 @@ Document:
 Prioritize these gaps in the current implementation:
 
 1. Resolve postponed annotations when building tool schemas.
-2. Validate and reject unsupported tool signatures.
-3. Detect duplicate tools during an agent render.
-4. Add timeout, cancellation, and maximum-turn handling using Tau's supported APIs.
-5. Improve errors for invalid models, missing keys, tool validation failures, and provider failures.
-6. Verify provider cleanup on success, tool errors, cancellation, and provider errors.
+1. Validate and reject unsupported tool signatures.
+1. Detect duplicate tools during an agent render.
+1. Add timeout, cancellation, and maximum-turn handling using Tau's supported APIs.
+1. Improve errors for invalid models, missing keys, tool validation failures, and provider failures.
+1. Verify provider cleanup on success, tool errors, cancellation, and provider errors.
 
 Avoid adding abstractions that do not support one of these MVP workflows.
 
@@ -283,7 +283,7 @@ The MVP is ready when a new user can install the package, define one agent and o
 Only after the stateless runner is stable, consider:
 
 1. A `Session` abstraction with caller-owned persistence.
-2. A streaming API for SSE and interactive clients.
-3. Structured response metadata such as usage and tool-call traces.
-4. Optional observability hooks.
-5. Additional integrations driven by real user demand.
+1. A streaming API for SSE and interactive clients.
+1. Structured response metadata such as usage and tool-call traces.
+1. Optional observability hooks.
+1. Additional integrations driven by real user demand.
