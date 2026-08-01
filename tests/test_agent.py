@@ -37,6 +37,14 @@ def test_define_agent_rejects_required_arguments() -> None:
         define_agent_raw(cast(AgentFn, _bad))
 
 
+def test_define_agent_rejects_async_functions() -> None:
+    async def _async_agent() -> str:
+        return ""
+
+    with pytest.raises(TypeError, match="plain \(sync\) function"):
+        define_agent_raw(cast(AgentFn, _async_agent))
+
+
 def test_hooks_outside_agent_raise() -> None:
     with pytest.raises(RuntimeError, match="use_model"):
         use_model_raw("test/model")

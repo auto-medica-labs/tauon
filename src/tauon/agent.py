@@ -15,11 +15,18 @@ from tau_agent.provider_events import TextDeltaEvent
 from tauon._prompt import build_system_prompt
 from tauon._types import Agent, AgentFn
 from tauon.hooks import collect_frame
-from tauon.provider import default_provider
+from tauon.provider import _split_model_spec, default_provider
 
 
 def define_agent(fn: AgentFn) -> Agent:
-    """Decorator that turns a function into a Tauon agent."""
+    """Decorator that turns a plain (sync) function into a Tauon agent."""
+    name = fn.__name__
+    if inspect.iscoroutinefunction(fn):
+        msg = (
+            f"Agent function {name!r} must be a plain (sync) function; "
+            "async agent functions are not supported"
+        )
+        raise TypeError(msg)
     sig = inspect.signature(fn)
     for _name, param in sig.parameters.items():
         if param.default is inspect.Parameter.empty and param.kind in {
@@ -32,20 +39,6 @@ def define_agent(fn: AgentFn) -> Agent:
     agent = cast(Agent, fn)
     agent._tauon_agent = True
     return agent
-
-
-def _split_model_spec(model: str) -> tuple[str | None, str]:
-    """Return (provider_name, bare_model) from a model specifier.
-
-    Supports ``provider/model`` syntax; bare model names are returned as-is.
-    """
-    if "/" in model:
-        provider_part, _, model_part = model.partition("/")
-        provider_part = provider_part.strip()
-        model_part = model_part.strip()
-        if provider_part and model_part:
-            return provider_part, model_part
-    return None, model
 
 
 async def run_agent(
@@ -87,6 +80,17 @@ async def run_agent(
     timeout:
         Maximum total wall-clock seconds before ``asyncio.TimeoutError``
         is raised.  ``None`` disables the limit.
+
+    Returns
+    -------
+    Final assistant text.  With multi-turn tool use, this is the text of the
+    final assistant message (intermediate reasoning prose is not included).
+
+    Raises
+    ------
+    RuntimeError
+        When the model stops with an error (including ``max_turns`` being
+        reached) or the provider raises a transport error.
     """
     frame = collect_frame(agent)
     raw_model = model or frame.model
@@ -133,18 +137,24 @@ async def run_agent(
                     event.message, AssistantMessage
                 ):
                     last_assistant = event.message
-                    # If the provider did not stream text deltas, fall back to
-                    # the assembled assistant message text.
-                    if not text_parts:
-                        text_parts.append(event.message.text)
             if last_assistant is not None and last_assistant.error_message:
-                msg = f"Provider error: {last_assistant.error_message}"
-                raise RuntimeError(msg)
+                raise RuntimeError(last_assistant.error_message)
+            if last_assistant is not None and last_assistant.text:
+                # Authoritative assembled text of the final assistant message.
+                return last_assistant.text
+            # Defensive: provider emitted no final message with text.
             return "".join(text_parts)
 
         if timeout is not None:
             return await asyncio.wait_for(_run(), timeout=timeout)
         return await _run()
+    except (RuntimeError, TimeoutError):
+        # Keep our own errors and timeout semantics intact; re-raise as-is.
+        raise
+    except Exception as exc:
+        # The harness isolates tool failures; anything else is transport-level.
+        msg = f"Provider error: {exc}"
+        raise RuntimeError(msg) from exc
     finally:
         if close_provider:
             aclose = getattr(provider, "aclose", None)

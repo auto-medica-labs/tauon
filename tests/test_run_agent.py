@@ -2,8 +2,14 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from typing import Any
+
 import pytest
-from tau_agent.messages import ToolCall
+from tau_agent.messages import AssistantMessage, TextContent, ToolCall
+from tau_agent.provider import CancellationToken
+from tau_agent.provider_events import AssistantDoneEvent, AssistantStartEvent, TextDeltaEvent
+from tau_ai.events import AssistantMessageEvent
 
 from conftest import FakeProvider
 from tauon import define_agent, define_tool, use_model, use_tool
@@ -91,3 +97,92 @@ async def test_run_agent_timeout_accepted() -> None:
 
     result = await run_agent(FastAgent, "hi", provider=FakeProvider(reply="ok"), timeout=30)
     assert result == "ok"
+
+
+class _TalkThenToolProvider(FakeProvider):
+    """Streams prose in turn 1 before a tool call, then answers in turn 2."""
+
+    def stream_response(
+        self,
+        *,
+        model: str,
+        system: str,
+        messages: list[Any],
+        tools: list[Any],
+        signal: CancellationToken | None = None,
+    ) -> AsyncIterator[AssistantMessageEvent]:
+        self._tool_turn_done = not self._tool_turn_done
+        if self._tool_turn_done:
+            # Turn 1: stream prose, then request a tool call.
+            async def first() -> AsyncIterator[AssistantMessageEvent]:
+                partial = AssistantMessage(content=[TextContent(text="Let me check")])
+                yield AssistantStartEvent(partial=partial)
+                yield TextDeltaEvent(content_index=0, delta="Let me check", partial=partial)
+                done = AssistantMessage(
+                    content=[
+                        TextContent(text="Let me check"),
+                        ToolCall(id="call-1", name="local_weather", arguments={"city": "Paris"}),
+                    ]
+                )
+                yield AssistantDoneEvent(reason="toolUse", message=done)
+
+            return first()
+
+        # Turn 2: final answer.
+        async def second() -> AsyncIterator[AssistantMessageEvent]:
+            partial = AssistantMessage(content=[TextContent(text="It's 22C.")])
+            yield AssistantStartEvent(partial=partial)
+            yield TextDeltaEvent(content_index=0, delta="It's 22C.", partial=partial)
+            yield AssistantDoneEvent(
+                reason="stop",
+                message=AssistantMessage(content=[TextContent(text="It's 22C.")]),
+            )
+
+        return second()
+
+
+@pytest.mark.anyio
+async def test_run_agent_returns_only_final_message_text() -> None:
+    """Intermediate turn prose must not leak into the returned text."""
+
+    @define_agent
+    def Agent() -> str:
+        use_model("test/model")
+        use_tool(local_weather)
+        return ""
+
+    result = await run_agent(Agent, "hi", provider=_TalkThenToolProvider(reply=""))
+    assert result == "It's 22C."
+
+
+class _RaisingProvider(FakeProvider):
+    """Provider whose transport raises mid-stream."""
+
+    def stream_response(self, **kwargs: Any) -> AsyncIterator[AssistantMessageEvent]:
+        async def boom() -> AsyncIterator[AssistantMessageEvent]:
+            raise ConnectionError("upstream refused")
+            yield  # unreachable; makes this an async generator
+
+        return boom()
+
+
+@pytest.mark.anyio
+async def test_run_agent_wraps_transport_errors() -> None:
+    @define_agent
+    def Agent() -> str:
+        use_model("test/model")
+        return ""
+
+    with pytest.raises(RuntimeError, match="Provider error: upstream refused"):
+        await run_agent(Agent, "hi", provider=_RaisingProvider(reply=""))
+
+
+@pytest.mark.anyio
+async def test_run_agent_raises_on_max_turns_stop() -> None:
+    @define_agent
+    def Agent() -> str:
+        use_model("test/model")
+        return ""
+
+    with pytest.raises(RuntimeError, match="max_turns must be at least 1"):
+        await run_agent(Agent, "hi", provider=FakeProvider(reply="x"), max_turns=0)

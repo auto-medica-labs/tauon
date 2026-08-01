@@ -393,10 +393,13 @@ wheels = [
 
 [[package]]
 name = "tauon"
-version = "0.0.1"
+version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "anyio" },
+    { name = "pydantic" },
     { name = "tau-ai" },
+    { name = "typer" },
 ]
 
 [package.dev-dependencies]
@@ -408,7 +411,12 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "tau-ai", specifier = ">=0.3.3" }]
+requires-dist = [
+    { name = "anyio", specifier = ">=4.0" },
+    { name = "pydantic", specifier = ">=2.11" },
+    { name = "tau-ai", specifier = ">=0.3.3" },
+    { name = "typer", specifier = ">=0.12" },
+]
 
 [package.metadata.requires-dev]
 dev = [
