@@ -86,4 +86,8 @@ def run(
     typer.echo(reply)
 
 
+if __name__ == "__main__":
+    app()
+
+
 __all__ = ["app"]

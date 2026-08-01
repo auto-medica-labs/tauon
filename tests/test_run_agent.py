@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -210,6 +211,13 @@ async def test_run_agent_empty_final_message_returns_empty_string() -> None:
 class _RaisingProvider(FakeProvider):
     """Provider whose transport raises mid-stream."""
 
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.aclose_called = False
+
+    async def aclose(self) -> None:
+        self.aclose_called = True
+
     def stream_response(self, **kwargs: Any) -> AsyncIterator[AssistantMessageEvent]:
         async def boom() -> AsyncIterator[AssistantMessageEvent]:
             raise ConnectionError("upstream refused")
@@ -225,9 +233,62 @@ async def test_run_agent_wraps_transport_errors(caplog: pytest.LogCaptureFixture
         use_model("test/model")
         return ""
 
-    with pytest.raises(RuntimeError, match="Provider error: upstream refused"):
+    with pytest.raises(RuntimeError, match=r"Provider error \(ConnectionError\): upstream refused"):
         await run_agent(Agent, "hi", provider=_RaisingProvider(reply=""))
     assert "run_agent failed" in caplog.text
+
+
+class _SlowProvider(FakeProvider):
+    """Provider that sleeps longer than any test timeout."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.aclose_called = False
+
+    async def aclose(self) -> None:
+        self.aclose_called = True
+
+    def stream_response(self, **kwargs: Any) -> AsyncIterator[AssistantMessageEvent]:
+        async def slow() -> AsyncIterator[AssistantMessageEvent]:
+            await asyncio.sleep(5)
+            yield AssistantStartEvent(partial=AssistantMessage(content=[TextContent(text="never")]))
+
+        return slow()
+
+
+@pytest.mark.anyio
+async def test_run_agent_timeout_fires() -> None:
+    """A slow provider must be cut off by the timeout, re-raised as-is."""
+
+    @define_agent
+    def Agent() -> str:
+        use_model("test/model")
+        return ""
+
+    provider = _SlowProvider(reply="")
+    with pytest.raises(TimeoutError):
+        await run_agent(Agent, "hi", provider=provider, timeout=0.1)
+    # An injected provider is caller-owned; run_agent must not close it.
+    assert provider.aclose_called is False
+
+
+@pytest.mark.anyio
+async def test_run_agent_closes_provider_on_transport_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A provider created by run_agent must be closed even when the run fails."""
+
+    @define_agent
+    def Agent() -> str:
+        use_model("test/model")
+        return ""
+
+    provider = _RaisingProvider(reply="")
+    monkeypatch.setattr("tauon.agent.default_provider", lambda **kwargs: provider)
+
+    with pytest.raises(RuntimeError, match="upstream refused"):
+        await run_agent(Agent, "hi")
+    assert provider.aclose_called is True
 
 
 class _AlwaysToolProvider(FakeProvider):

@@ -102,12 +102,17 @@ def default_provider(
             provider_name, model = _split_model_spec(model)
 
         if provider_name is not None:
-            # Explicit provider names fail loudly; no silent fallback.
-            return _try_create_provider(
-                settings,
-                provider_name=provider_name,
-                model=model,
-            )
+            # Explicit provider names fail loudly; no silent fallback. Wrap
+            # tau-internal config errors so callers see one error contract.
+            try:
+                return _try_create_provider(
+                    settings,
+                    provider_name=provider_name,
+                    model=model,
+                )
+            except ProviderConfigError as exc:
+                msg = f"Provider config error: {exc}"
+                raise RuntimeError(msg) from exc
 
         try:
             return _try_create_provider(settings, model=model)

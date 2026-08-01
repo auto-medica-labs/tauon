@@ -97,23 +97,3 @@ model name is sent to OpenAI rather than failing at startup — use the
 For a provider not in the catalog, or to override the endpoint explicitly, pass
 `api_key` and `base_url` directly to `run_agent()` as shown in
 [`examples/custom_provider.py`](examples/custom_provider.py).
-
-## Changelog
-
-### 0.1.0
-
-Breaking changes from 0.0.1:
-
-- `run_agent()` now returns only the text of the **final** assistant message.
-  Multi-turn tool use no longer concatenates intermediate reasoning prose; if
-  the provider ends with no text, the result is an empty string.
-- Provider transport errors are wrapped in a `RuntimeError` with a
-  `Provider error:` message prefix (the original exception is preserved as
-  `__cause__` and logged). 0.0.1 propagated the raw provider exception
-  (e.g. `ConnectionError`).
-
-Also fixed:
-
-- `tauon run <script>` keeps the script's directory importable for the whole
-  run, so sibling imports inside agent/tool bodies work lazily at run time,
-  matching `python script.py` semantics.

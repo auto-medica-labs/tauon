@@ -149,9 +149,11 @@ async def run_agent(
         raise
     except Exception as exc:
         # The harness isolates tool failures; anything else is a transport
-        # error or an internal bug — log the original before wrapping.
+        # error or an internal bug — log the original before wrapping. The
+        # wrapped message keeps the real exception type so internal bugs are
+        # not misread as upstream transport failures.
         logger.warning("run_agent failed: %r", exc, exc_info=True)
-        msg = f"Provider error: {exc}"
+        msg = f"Provider error ({type(exc).__name__}): {exc}"
         raise RuntimeError(msg) from exc
     finally:
         if close_provider:

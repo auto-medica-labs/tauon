@@ -30,7 +30,7 @@ async def generic_endpoint() -> None:
     reply = await run_agent(
         SimpleAgent,
         "Say hello in French.",
-        api_key=os.environ.get("OPENAI_API_KEY", ""),
+        api_key=os.environ.get("OPENROUTER_API_KEY"),
         base_url="https://openrouter.ai/api/v1",
         model="qwen/qwen3.5-9b",
     )
