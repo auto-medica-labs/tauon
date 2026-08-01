@@ -27,6 +27,32 @@ def test_load_agent_module_with_sibling_import(tmp_path: Path) -> None:
     assert agent.__name__ == "MyAgent"
 
 
+def test_run_command_keeps_sibling_dir_for_lazy_imports(tmp_path: Path) -> None:
+    """Lazy sibling imports inside the agent body must work, like python script.py."""
+    (tmp_path / "helper.py").write_text("VALUE = 42\n")
+    script = tmp_path / "lazy_agent.py"
+    script.write_text(
+        "from tauon import define_agent, use_model\n"
+        "\n"
+        "@define_agent\n"
+        "def MyAgent() -> str:\n"
+        "    from helper import VALUE  # lazy import at run time, not load time\n"
+        "    use_model('test/model')\n"
+        "    return f'val={VALUE}'\n"
+    )
+
+    from typer.testing import CliRunner
+
+    from tauon.cli import app
+
+    result = CliRunner().invoke(app, ["run", str(script), "--message", "hi"])
+    # The lazy import must have succeeded: any failure is a provider issue,
+    # never a missing sibling module.
+    assert "No module named 'helper'" not in result.output
+    if result.exception is not None:
+        assert "No module named 'helper'" not in str(result.exception)
+
+
 def test_find_agent_rejects_multiple_agents(tmp_path: Path) -> None:
     script = tmp_path / "two_agents.py"
     script.write_text(

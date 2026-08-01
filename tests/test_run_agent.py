@@ -155,6 +155,58 @@ async def test_run_agent_returns_only_final_message_text() -> None:
     assert result == "It's 22C."
 
 
+class _EmptyFinalProvider(FakeProvider):
+    """Streams prose in turn 1 before a tool call, then ends with no text."""
+
+    def stream_response(
+        self,
+        *,
+        model: str,
+        system: str,
+        messages: list[Any],
+        tools: list[Any],
+        signal: CancellationToken | None = None,
+    ) -> AsyncIterator[AssistantMessageEvent]:
+        self._tool_turn_done = not self._tool_turn_done
+        if self._tool_turn_done:
+            # Turn 1: stream prose, then request a tool call.
+            async def first() -> AsyncIterator[AssistantMessageEvent]:
+                partial = AssistantMessage(content=[TextContent(text="Let me check")])
+                yield AssistantStartEvent(partial=partial)
+                yield TextDeltaEvent(content_index=0, delta="Let me check", partial=partial)
+                done = AssistantMessage(
+                    content=[
+                        TextContent(text="Let me check"),
+                        ToolCall(id="call-1", name="local_weather", arguments={"city": "Paris"}),
+                    ]
+                )
+                yield AssistantDoneEvent(reason="toolUse", message=done)
+
+            return first()
+
+        # Turn 2: final answer with NO text content.
+        async def second() -> AsyncIterator[AssistantMessageEvent]:
+            partial = AssistantMessage(content=[])
+            yield AssistantStartEvent(partial=partial)
+            yield AssistantDoneEvent(reason="stop", message=AssistantMessage(content=[]))
+
+        return second()
+
+
+@pytest.mark.anyio
+async def test_run_agent_empty_final_message_returns_empty_string() -> None:
+    """An empty final message must not leak intermediate turn prose."""
+
+    @define_agent
+    def Agent() -> str:
+        use_model("test/model")
+        use_tool(local_weather)
+        return ""
+
+    result = await run_agent(Agent, "hi", provider=_EmptyFinalProvider(reply=""))
+    assert result == ""
+
+
 class _RaisingProvider(FakeProvider):
     """Provider whose transport raises mid-stream."""
 
@@ -167,7 +219,7 @@ class _RaisingProvider(FakeProvider):
 
 
 @pytest.mark.anyio
-async def test_run_agent_wraps_transport_errors() -> None:
+async def test_run_agent_wraps_transport_errors(caplog: pytest.LogCaptureFixture) -> None:
     @define_agent
     def Agent() -> str:
         use_model("test/model")
@@ -175,6 +227,55 @@ async def test_run_agent_wraps_transport_errors() -> None:
 
     with pytest.raises(RuntimeError, match="Provider error: upstream refused"):
         await run_agent(Agent, "hi", provider=_RaisingProvider(reply=""))
+    assert "run_agent failed" in caplog.text
+
+
+class _AlwaysToolProvider(FakeProvider):
+    """Requests a tool call on every turn (runaway tool loop)."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.call_count = 0
+
+    def stream_response(
+        self,
+        *,
+        model: str,
+        system: str,
+        messages: list[Any],
+        tools: list[Any],
+        signal: CancellationToken | None = None,
+    ) -> AsyncIterator[AssistantMessageEvent]:
+        self.call_count += 1
+
+        async def loop() -> AsyncIterator[AssistantMessageEvent]:
+            message = AssistantMessage(
+                content=[
+                    TextContent(text=""),
+                    ToolCall(id="call-1", name="local_weather", arguments={"city": "Paris"}),
+                ]
+            )
+            yield AssistantStartEvent(partial=message)
+            yield AssistantDoneEvent(reason="toolUse", message=message)
+
+        return loop()
+
+
+@pytest.mark.anyio
+async def test_run_agent_stops_at_max_turns() -> None:
+    """A runaway tool loop must stop once max_turns is reached."""
+
+    @define_agent
+    def Agent() -> str:
+        use_model("test/model")
+        use_tool(local_weather)
+        return ""
+
+    provider = _AlwaysToolProvider(reply="")
+    with pytest.raises(RuntimeError, match=r"Agent stopped after max_turns=2"):
+        await run_agent(Agent, "hi", provider=provider, max_turns=2)
+    # The tool loop actually ran before the limit stopped it.
+    assert provider.call_count == 2
 
 
 @pytest.mark.anyio

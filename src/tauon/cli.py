@@ -71,7 +71,18 @@ def run(
     """Load an agent module and run it with MESSAGE."""
     module = _load_agent_module(path)
     agent = _find_agent(module)
-    reply = anyio.run(lambda: run_agent(agent, message, model=model, provider_name=provider))
+    # Keep the script's directory importable for the whole run, matching
+    # `python script.py` semantics — agent bodies and tools may import
+    # siblings lazily at run time, not just at load time.
+    parent = str(path.parent)
+    sys.path.insert(0, parent)
+    try:
+        reply = anyio.run(
+            lambda: run_agent(agent, message, model=model, provider_name=provider)
+        )
+    finally:
+        with suppress(ValueError):
+            sys.path.remove(parent)
     typer.echo(reply)
 
 

@@ -4,18 +4,20 @@ from __future__ import annotations
 
 import asyncio
 import inspect
+import logging
 from typing import cast
 
-from tau_agent.events import MessageEndEvent, MessageUpdateEvent
+from tau_agent.events import MessageEndEvent
 from tau_agent.harness import AgentHarness, AgentHarnessConfig
 from tau_agent.messages import AssistantMessage
 from tau_agent.provider import ModelProvider
-from tau_agent.provider_events import TextDeltaEvent
 
 from tauon._prompt import build_system_prompt
 from tauon._types import Agent, AgentFn
 from tauon.hooks import collect_frame
 from tauon.provider import _split_model_spec, default_provider
+
+logger = logging.getLogger(__name__)
 
 
 def define_agent(fn: AgentFn) -> Agent:
@@ -123,27 +125,21 @@ async def run_agent(
     )
 
     try:
-        text_parts: list[str] = []
         last_assistant: AssistantMessage | None = None
 
         async def _run() -> str:
-            nonlocal text_parts, last_assistant
+            nonlocal last_assistant
             async for event in harness.prompt(message):
-                if isinstance(event, MessageUpdateEvent):
-                    inner = event.assistant_message_event
-                    if isinstance(inner, TextDeltaEvent):
-                        text_parts.append(inner.delta)
-                elif isinstance(event, MessageEndEvent) and isinstance(
+                if isinstance(event, MessageEndEvent) and isinstance(
                     event.message, AssistantMessage
                 ):
                     last_assistant = event.message
             if last_assistant is not None and last_assistant.error_message:
                 raise RuntimeError(last_assistant.error_message)
-            if last_assistant is not None and last_assistant.text:
-                # Authoritative assembled text of the final assistant message.
-                return last_assistant.text
-            # Defensive: provider emitted no final message with text.
-            return "".join(text_parts)
+            # The loop always emits a final assistant MessageEndEvent on
+            # non-error exits; an empty string means the provider ended
+            # without producing text (intermediate turn prose is not included).
+            return last_assistant.text if last_assistant is not None else ""
 
         if timeout is not None:
             return await asyncio.wait_for(_run(), timeout=timeout)
@@ -152,7 +148,9 @@ async def run_agent(
         # Keep our own errors and timeout semantics intact; re-raise as-is.
         raise
     except Exception as exc:
-        # The harness isolates tool failures; anything else is transport-level.
+        # The harness isolates tool failures; anything else is a transport
+        # error or an internal bug — log the original before wrapping.
+        logger.warning("run_agent failed: %r", exc, exc_info=True)
         msg = f"Provider error: {exc}"
         raise RuntimeError(msg) from exc
     finally:
