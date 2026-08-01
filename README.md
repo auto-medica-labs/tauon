@@ -88,6 +88,12 @@ default provider, which is `openai`. Use the `provider/model` syntax for every
 other provider. For OpenRouter the prefix is required because model IDs contain
 `/`, e.g. `use_model("openrouter/qwen/qwen3-14b")`.
 
+Model names not yet in Tau's built-in catalog fall back to a plain
+OpenAI-compatible provider using `OPENAI_API_KEY` (a warning is logged). This
+keeps newly-released models usable immediately, but it also means a typo'd
+model name is sent to OpenAI rather than failing at startup — use the
+`provider/model` syntax to force a specific provider.
+
 For a provider not in the catalog, or to override the endpoint explicitly, pass
 `api_key` and `base_url` directly to `run_agent()` as shown in
 [`examples/custom_provider.py`](examples/custom_provider.py).

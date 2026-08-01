@@ -4,13 +4,16 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tauon"
-version = "0.0.1"
+version = "0.1.0"
 description = "A minimal Python agent framework built on tau-ai."
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
+    "anyio>=4.0",
+    "pydantic>=2.11",
     "tau-ai>=0.3.3",
+    "typer>=0.12",
 ]
 
 [project.scripts]

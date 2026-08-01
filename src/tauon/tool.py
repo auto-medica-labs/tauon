@@ -12,9 +12,6 @@ from tau_agent.messages import TextContent
 from tau_agent.tools import AgentTool, AgentToolResult
 from tau_agent.types import JSONValue
 
-# Public type so `use_tool` can accept decorated tools without Any leakage.
-type ToolLike = AgentTool
-
 
 class _ToolFn(Protocol):
     """Function shape accepted by define_tool."""
@@ -99,4 +96,4 @@ def define_tool[F: Callable[..., Any]](fn: F) -> AgentTool:
     )
 
 
-__all__ = ["AgentTool", "ToolLike", "define_tool"]
+__all__ = ["AgentTool", "define_tool"]
