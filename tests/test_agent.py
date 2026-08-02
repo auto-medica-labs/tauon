@@ -133,6 +133,19 @@ def test_use_prompt_missing_file_raises(tmp_path) -> None:
         collect_frame(MyAgent)
 
 
+def test_use_prompt_non_utf8_file_raises(tmp_path) -> None:
+    prompt_file = tmp_path / "prompt.md"
+    prompt_file.write_bytes(b"caf\xe9 latin-1 bytes")
+
+    @define_agent
+    def MyAgent() -> None:
+        use_model("test/model")
+        use_prompt(prompt_file)
+
+    with pytest.raises(RuntimeError, match="Could not load prompt file"):
+        collect_frame(MyAgent)
+
+
 def test_use_prompt_relative_path_falls_back_to_cwd(tmp_path, monkeypatch) -> None:
     # Simulate a module-less agent (REPL / `-c`): no `__file__` in globals.
     (tmp_path / "prompt.md").write_text("cwd instructions")

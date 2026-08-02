@@ -73,8 +73,8 @@ def use_prompt(path: str | Path) -> None:
         prompt_path = frame.module_dir / prompt_path
     try:
         frame.instructions = prompt_path.read_text(encoding="utf-8")
-    except OSError as exc:
-        detail = exc.strerror or str(exc)
+    except (OSError, UnicodeError) as exc:
+        detail = getattr(exc, "strerror", None) or str(exc)
         msg = f"Could not load prompt file {prompt_path}: {detail}"
         raise RuntimeError(msg) from exc
 
