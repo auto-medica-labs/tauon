@@ -1,5 +1,10 @@
 ## Changelog
 
+### 0.1.3
+
+- Upgrade `tau-ai` to `>=0.3.5` (prompt-cache retention settings, Codex
+  token-refresh locking; no API changes).
+
 ### 0.1.0
 
 Breaking changes from 0.0.1:
