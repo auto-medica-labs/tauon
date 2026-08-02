@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from contextvars import ContextVar
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -10,6 +9,8 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from tau_agent.tools import AgentTool
+
+    from tauon._types import AgentFn
 
 
 @dataclass
@@ -70,10 +71,10 @@ def use_prompt(path: str | Path) -> None:
     frame.instructions = prompt_path.read_text(encoding="utf-8")
 
 
-def collect_frame(agent_fn: Callable[[], str | None]) -> RenderFrame:  # type: ignore[name-defined]
+def collect_frame(agent_fn: AgentFn) -> RenderFrame:
     """Run ``agent_fn`` inside a fresh render frame and return it."""
     frame = RenderFrame()
-    module_file = agent_fn.__globals__.get("__file__")  # type: ignore[attr-defined]
+    module_file = agent_fn.__globals__.get("__file__")
     if module_file:
         frame.module_dir = Path(module_file).resolve().parent
     token = _current_frame.set(frame)

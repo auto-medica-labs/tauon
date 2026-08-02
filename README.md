@@ -31,6 +31,28 @@ export OPENAI_API_KEY=...
 uv run tauon run examples/weather.py --message "What's the weather in Paris?"
 ```
 
+## Prompts
+
+Long system prompts are better kept in a markdown/text file than returned
+from the agent body. Load one with `use_prompt()`:
+
+```python
+from tauon import define_agent, use_model, use_prompt
+
+
+@define_agent
+def WeatherAgent() -> None:
+    use_model("gpt-4.1-mini")
+    use_prompt("prompt.md")
+```
+
+Relative paths resolve against the directory of the module that defines the
+agent, so `tauon run` works from any launch directory. Agents defined without
+a module file (REPL, `-c`) fall back to the current working directory.
+`use_prompt()` and returning a prompt string from the agent are mutually
+exclusive — using both raises a `RuntimeError`. See
+[`examples/markdown_prompt.py`](examples/markdown_prompt.py).
+
 ## Models and environment variables
 
 Tauon resolves models from Tau's built-in provider catalog. API keys are read

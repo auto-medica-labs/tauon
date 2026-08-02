@@ -77,9 +77,7 @@ def run(
     parent = str(path.parent)
     sys.path.insert(0, parent)
     try:
-        reply = anyio.run(
-            lambda: run_agent(agent, message, model=model, provider_name=provider)
-        )
+        reply = anyio.run(lambda: run_agent(agent, message, model=model, provider_name=provider))
     finally:
         with suppress(ValueError):
             sys.path.remove(parent)

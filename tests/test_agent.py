@@ -101,6 +101,8 @@ def test_use_prompt_relative_path_resolves_against_module_dir(tmp_path) -> None:
         "    use_prompt('prompt.md')\n"
     )
     spec = importlib.util.spec_from_file_location("tauon_test_agent_mod", mod_file)
+    if spec is None or spec.loader is None:
+        raise AssertionError(f"Could not load module from {mod_file}")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     frame = collect_frame(module.MyAgent)
@@ -118,6 +120,46 @@ def test_use_prompt_and_return_value_conflict_raises(tmp_path) -> None:
         return "returned instructions"
 
     with pytest.raises(RuntimeError, match=r"use_prompt\(\).*return value"):
+        collect_frame(MyAgent)
+
+
+def test_use_prompt_missing_file_raises(tmp_path) -> None:
+    @define_agent
+    def MyAgent() -> None:
+        use_model("test/model")
+        use_prompt(tmp_path / "nope.md")
+
+    with pytest.raises(FileNotFoundError):
+        collect_frame(MyAgent)
+
+
+def test_use_prompt_relative_path_falls_back_to_cwd(tmp_path, monkeypatch) -> None:
+    # Simulate a module-less agent (REPL / `-c`): no `__file__` in globals.
+    (tmp_path / "prompt.md").write_text("cwd instructions")
+    monkeypatch.chdir(tmp_path)
+    mod_globals: dict[str, object] = {}
+    exec(
+        "from tauon import define_agent, use_prompt\n"
+        "@define_agent\n"
+        "def MyAgent() -> None:\n"
+        "    use_prompt('prompt.md')\n",
+        mod_globals,
+    )
+    frame = collect_frame(cast(AgentFn, mod_globals["MyAgent"]))
+    assert frame.instructions == "cwd instructions"
+
+
+def test_use_prompt_called_twice_raises(tmp_path) -> None:
+    prompt_file = tmp_path / "prompt.md"
+    prompt_file.write_text("file instructions")
+
+    @define_agent
+    def MyAgent() -> None:
+        use_model("test/model")
+        use_prompt(prompt_file)
+        use_prompt(prompt_file)
+
+    with pytest.raises(RuntimeError, match="already set"):
         collect_frame(MyAgent)
 
 
