@@ -129,7 +129,7 @@ def test_use_prompt_missing_file_raises(tmp_path) -> None:
         use_model("test/model")
         use_prompt(tmp_path / "nope.md")
 
-    with pytest.raises(FileNotFoundError):
+    with pytest.raises(RuntimeError, match="Could not load prompt file"):
         collect_frame(MyAgent)
 
 
@@ -159,7 +159,7 @@ def test_use_prompt_called_twice_raises(tmp_path) -> None:
         use_prompt(prompt_file)
         use_prompt(prompt_file)
 
-    with pytest.raises(RuntimeError, match="already set"):
+    with pytest.raises(RuntimeError, match="more than once"):
         collect_frame(MyAgent)
 
 

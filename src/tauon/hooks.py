@@ -63,18 +63,26 @@ def use_prompt(path: str | Path) -> None:
         msg = "use_prompt must be called inside an agent function decorated with @define_agent"
         raise RuntimeError(msg)
     if frame.instructions is not None:
-        msg = "System prompt already set; use either use_prompt() or the return value, not both"
+        msg = (
+            "use_prompt() called more than once; the system prompt is set "
+            "either by use_prompt() or by the return value, not both"
+        )
         raise RuntimeError(msg)
     prompt_path = Path(path)
     if not prompt_path.is_absolute() and frame.module_dir is not None:
         prompt_path = frame.module_dir / prompt_path
-    frame.instructions = prompt_path.read_text(encoding="utf-8")
+    try:
+        frame.instructions = prompt_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        detail = exc.strerror or str(exc)
+        msg = f"Could not load prompt file {prompt_path}: {detail}"
+        raise RuntimeError(msg) from exc
 
 
 def collect_frame(agent_fn: AgentFn) -> RenderFrame:
     """Run ``agent_fn`` inside a fresh render frame and return it."""
     frame = RenderFrame()
-    module_file = agent_fn.__globals__.get("__file__")
+    module_file = getattr(agent_fn, "__globals__", {}).get("__file__")
     if module_file:
         frame.module_dir = Path(module_file).resolve().parent
     token = _current_frame.set(frame)
