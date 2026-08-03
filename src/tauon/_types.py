@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal, Protocol, runtime_checkable
+from typing import Any, Literal, Protocol, runtime_checkable
 
 from tau_agent.types import JSONValue
 
@@ -14,6 +14,10 @@ class Agent(Protocol):
     def __call__(self) -> str | None: ...
 
     __name__: str
+
+    @property
+    def __globals__(self) -> dict[str, Any]: ...
+
     _tauon_agent: Literal[True]
 
 
@@ -23,6 +27,9 @@ class AgentFn(Protocol):
     def __call__(self) -> str | None: ...
 
     __name__: str
+
+    @property
+    def __globals__(self) -> dict[str, Any]: ...
 
 
 __all__ = ["Agent", "AgentFn", "JSONValue"]

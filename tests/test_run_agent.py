@@ -13,7 +13,7 @@ from tau_agent.provider_events import AssistantDoneEvent, AssistantStartEvent, T
 from tau_ai.events import AssistantMessageEvent
 
 from conftest import FakeProvider
-from tauon import define_agent, define_tool, use_model, use_tool
+from tauon import define_agent, define_tool, use_model, use_prompt, use_tool
 from tauon.agent import run_agent
 
 
@@ -98,6 +98,30 @@ async def test_run_agent_timeout_accepted() -> None:
 
     result = await run_agent(FastAgent, "hi", provider=FakeProvider(reply="ok"), timeout=30)
     assert result == "ok"
+
+
+class _CaptureSystemProvider(FakeProvider):
+    """FakeProvider that records the system prompt it was given."""
+
+    def stream_response(self, **kwargs: Any) -> AsyncIterator[AssistantMessageEvent]:
+        self.system = kwargs["system"]
+        return super().stream_response(**kwargs)
+
+
+@pytest.mark.anyio
+async def test_use_prompt_contents_reach_system_prompt(tmp_path) -> None:
+    prompt_file = tmp_path / "prompt.md"
+    prompt_file.write_text("file instructions")
+
+    @define_agent
+    def MyAgent() -> None:
+        use_model("test/model")
+        use_prompt(prompt_file)
+
+    provider = _CaptureSystemProvider(reply="ok")
+    result = await run_agent(MyAgent, "hi", provider=provider)
+    assert result == "ok"
+    assert "file instructions" in provider.system
 
 
 class _TalkThenToolProvider(FakeProvider):
