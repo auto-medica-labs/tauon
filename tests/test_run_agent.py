@@ -135,6 +135,7 @@ class _TalkThenToolProvider(FakeProvider):
         messages: list[Any],
         tools: list[Any],
         signal: CancellationToken | None = None,
+        session_id: str | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
         self._tool_turn_done = not self._tool_turn_done
         if self._tool_turn_done:
@@ -191,6 +192,7 @@ class _EmptyFinalProvider(FakeProvider):
         messages: list[Any],
         tools: list[Any],
         signal: CancellationToken | None = None,
+        session_id: str | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
         self._tool_turn_done = not self._tool_turn_done
         if self._tool_turn_done:
@@ -330,6 +332,7 @@ class _AlwaysToolProvider(FakeProvider):
         messages: list[Any],
         tools: list[Any],
         signal: CancellationToken | None = None,
+        session_id: str | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
         self.call_count += 1
 

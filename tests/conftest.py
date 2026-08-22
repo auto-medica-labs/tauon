@@ -48,6 +48,7 @@ class FakeProvider(ModelProvider):
         messages: list[Any],
         tools: list[Any],
         signal: CancellationToken | None = None,
+        session_id: str | None = None,
     ) -> AsyncIterator[AssistantMessageEvent]:
         async def iterator() -> AsyncIterator[AssistantMessageEvent]:
             if self.tool_calls and not self._tool_turn_done:

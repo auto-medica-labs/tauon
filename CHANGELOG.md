@@ -1,7 +1,8 @@
 ## Changelog
 
-### Unreleased
+### 0.1.4
 
+- Upgrade `tau-ai` to `>=0.3.13` (provider protocol now passes `session_id`).
 - New `use_prompt()` hook loads the system prompt from a markdown/text file.
   Relative paths resolve against the directory of the module that defines the
   agent, so `tauon run` works from any launch directory; agents defined
