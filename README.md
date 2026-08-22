@@ -119,3 +119,19 @@ model name is sent to OpenAI rather than failing at startup — use the
 For a provider not in the catalog, or to override the endpoint explicitly, pass
 `api_key` and `base_url` directly to `run_agent()` as shown in
 [`examples/custom_provider.py`](examples/custom_provider.py).
+
+## LINE bot webhook
+
+[`examples/line_bot.py`](examples/line_bot.py) shows a signed LINE webhook that
+passes text messages to a Tauon agent and replies with the v3 LINE SDK.
+
+```bash
+export LINE_CHANNEL_SECRET=...
+export LINE_CHANNEL_ACCESS_TOKEN=...
+export OPENAI_API_KEY=...
+uv run --with line-bot-sdk --with flask python examples/line_bot.py
+```
+
+Expose port `8000` through a public HTTPS tunnel and configure its `/callback`
+URL in the LINE Developers Console. The example ignores non-text events,
+bounds message and reply lengths, and rejects invalid webhook signatures.
