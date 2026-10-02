@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.4.1
+
+- No runtime changes; verifies the tag-triggered PyPI publishing workflow.
+
 ### 0.4.0
 
 Breaking changes:
