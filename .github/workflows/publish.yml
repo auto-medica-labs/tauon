@@ -12,7 +12,7 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v10
+      - uses: astral-sh/setup-uv@v10.2.0
       - name: Check tag matches version
         run: test "v$(uv version --short)" = "${GITHUB_REF_NAME}"
       - run: uv build
