@@ -21,7 +21,7 @@ def get_weather(city: str) -> str:
 
 @define_agent
 def WeatherAgent() -> str:
-    use_model("gpt-4.1-mini")
+    use_model("openai/gpt-4.1-mini")
     use_tool(get_weather)
     return "You are a weather assistant."
 ```
@@ -42,7 +42,7 @@ from tauon import define_agent, use_model, use_prompt
 
 @define_agent
 def WeatherAgent() -> None:
-    use_model("gpt-4.1-mini")
+    use_model("openai/gpt-4.1-mini")
     use_prompt("prompt.md")
 ```
 
@@ -56,18 +56,17 @@ exclusive — using both raises a `RuntimeError`. See
 ## Models and environment variables
 
 Tauon resolves models from Tau's built-in provider catalog. API keys are read
-from environment variables only; Tauon does **not** load saved credentials from
-`~/.tau/credentials.json` or provider preferences from `~/.tau/providers.json`.
+from environment variables only. Tauon never reads or writes `$TAU_HOME`
+(`~/.tau`): it does not load saved credentials (`credentials.json`),
+preferences (`providers.json`), catalog overlays (`catalog.toml`), or the
+refreshed `models-store.json`. Codex subscription auth (`openai-codex/*`) is
+not supported — use an API-key provider.
 
 ### `use_model()` patterns
 
 ```python
-# Bare model name: resolved against the default provider (openai).
-use_model("gpt-4.1-mini")  # needs OPENAI_API_KEY
-
-# provider/model syntax: required when the model ID contains "/" or when you
-# want to force a specific provider.
-use_model("openai-codex/gpt-5.6-luna")  # needs OPENAI_CODEX_ACCESS_TOKEN
+# provider/model syntax is required.
+use_model("openai/gpt-4.1-mini")  # needs OPENAI_API_KEY
 use_model("openrouter/qwen/qwen3-14b")  # needs OPENROUTER_API_KEY
 use_model("anthropic/claude-sonnet-4-6")  # needs ANTHROPIC_API_KEY
 ```
@@ -76,8 +75,7 @@ use_model("anthropic/claude-sonnet-4-6")  # needs ANTHROPIC_API_KEY
 
 | Provider                | Env var                         | Example `use_model()`                                           |
 | ----------------------- | ------------------------------- | --------------------------------------------------------------- |
-| `openai`                | `OPENAI_API_KEY`                | `use_model("gpt-4.1-mini")`                                     |
-| `openai-codex`          | `OPENAI_CODEX_ACCESS_TOKEN`     | `use_model("openai-codex/gpt-5.6-luna")`                        |
+| `openai`                | `OPENAI_API_KEY`                | `use_model("openai/gpt-4.1-mini")`                             |
 | `anthropic`             | `ANTHROPIC_API_KEY`             | `use_model("anthropic/claude-sonnet-4-6")`                      |
 | `google`                | `GEMINI_API_KEY`                | `use_model("google/gemini-2.5-pro")`                            |
 | `deepseek`              | `DEEPSEEK_API_KEY`              | `use_model("deepseek/deepseek-v4-pro")`                         |
@@ -105,17 +103,12 @@ use_model("anthropic/claude-sonnet-4-6")  # needs ANTHROPIC_API_KEY
 | `opencode-go`           | `OPENCODE_API_KEY`              | `use_model("opencode-go/kimi-k2.7-code")`                       |
 | `github-copilot`        | `COPILOT_GITHUB_TOKEN`          | `use_model("github-copilot/claude-opus-4.5")`                   |
 
-Bare model names (e.g. `use_model("gpt-4.1-mini")`) resolve against the
-default provider, which is `openai`. Use the `provider/model` syntax for every
-other provider. For OpenRouter the prefix is required because model IDs contain
-`/`, e.g. `use_model("openrouter/qwen/qwen3-14b")`.
+Every model must use `provider/model` syntax; a bare model name raises a
+`RuntimeError`. For OpenRouter the model ID itself contains `/`, e.g.
+`use_model("openrouter/qwen/qwen3-14b")`.
 
-Model names not yet in Tau's built-in catalog fall back to a plain
-OpenAI-compatible provider using `OPENAI_API_KEY` (a warning is logged). This
-keeps newly-released models usable immediately, but it also means a typo'd
-model name is sent to OpenAI rather than failing at startup — use the
-`provider/model` syntax to force a specific provider.
-
-For a provider not in the catalog, or to override the endpoint explicitly, pass
-`api_key` and `base_url` directly to `run_agent()` as shown in
+A model that is not in Tau's built-in catalog for the named provider raises a
+`RuntimeError` rather than silently falling back. To point at a provider or
+endpoint not in the catalog, pass `api_key` and `base_url` directly to
+`run_agent()` as shown in
 [`examples/custom_provider.py`](examples/custom_provider.py).

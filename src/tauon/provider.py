@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import logging
 from os import environ
 from typing import Any
 
@@ -16,8 +15,6 @@ from tau_coding.provider_config import (
     resolve_provider_selection,
 )
 from tau_coding.provider_runtime import create_model_provider
-
-logger = logging.getLogger("tauon")
 
 
 def _split_model_spec(model: str) -> tuple[str | None, str]:
@@ -85,11 +82,13 @@ def default_provider(
     (``~/.tau/credentials.json``) and provider preferences
     (``~/.tau/providers.json``) are ignored.
 
-    ``OPENAI_API_KEY``/``ANTHROPIC_API_KEY``/``OPENAI_CODEX_ACCESS_TOKEN``/etc.
-    are read from the environment by the catalog runtime.
+    ``OPENAI_API_KEY``/``ANTHROPIC_API_KEY``/etc. are read from the environment
+    by the catalog runtime. No ``$TAU_HOME`` (``~/.tau``) state is read.
 
-    Explicit ``base_url`` or ``api_key`` fall back to a plain
-    OpenAI-compatible provider when the model is not in Tau's catalog.
+    Model names must use ``provider/model`` syntax. Bare names raise a
+    ``RuntimeError`` unless *provider_name* or an explicit *api_key* / *base_url*
+    is passed. Explicit *api_key* / *base_url* bypass the catalog and create a
+    plain OpenAI-compatible provider.
     """
     # Treat empty-string overrides as unset: "" is not a real api_key/base_url.
     api_key = api_key or None
@@ -100,29 +99,24 @@ def default_provider(
         settings = ProviderSettings()
         if provider_name is None:
             provider_name, model = _split_model_spec(model)
-
-        if provider_name is not None:
-            # Explicit provider names fail loudly; no silent fallback. Wrap
-            # tau-internal config errors so callers see one error contract.
-            try:
-                return _try_create_provider(
-                    settings,
-                    provider_name=provider_name,
-                    model=model,
-                )
-            except ProviderConfigError as exc:
-                msg = f"Provider config error: {exc}"
-                raise RuntimeError(msg) from exc
-
-        try:
-            return _try_create_provider(settings, model=model)
-        except ProviderConfigError:
-            logger.warning(
-                "Model %r is not in Tau's provider catalog; falling back to a "
-                "plain OpenAI-compatible provider (needs OPENAI_API_KEY). "
-                "Use 'provider/model' to force a specific provider.",
-                model,
+        if provider_name is None:
+            msg = (
+                f"Model {model!r} must be prefixed with a provider, e.g. "
+                f'use_model("openai/{model}").'
             )
+            raise RuntimeError(msg)
+
+        # Explicit provider names fail loudly; no silent fallback. Wrap
+        # tau-internal config errors so callers see one error contract.
+        try:
+            return _try_create_provider(
+                settings,
+                provider_name=provider_name,
+                model=model,
+            )
+        except ProviderConfigError as exc:
+            msg = f"Provider config error: {exc}"
+            raise RuntimeError(msg) from exc
 
     return _simple_openai_provider(api_key=api_key, base_url=base_url)
 

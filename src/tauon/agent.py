@@ -73,7 +73,8 @@ async def run_agent(
     model:
         Override the model set by ``use_model()`` inside the agent.
         When set, ``model=`` wins over ``use_model()``.
-        Supports ``provider/model`` syntax.
+        Must use ``provider/model`` syntax unless *provider_name* or an
+        explicit *api_key* / *base_url* is also passed.
     provider_name:
         Provider name override (e.g. ``"openai"``, ``"anthropic"``).
     max_turns:
@@ -100,9 +101,16 @@ async def run_agent(
         msg = "No model specified. Call use_model() in the agent or pass model=."
         raise RuntimeError(msg)
 
-    parsed_provider, resolved_model = _split_model_spec(raw_model)
-    if provider_name is None:
-        provider_name = parsed_provider
+    # Catalog resolution uses provider/model syntax. A custom endpoint
+    # (api_key/base_url) or an injected provider owns the model id, so pass it
+    # through verbatim: slash-containing ids such as OpenRouter's
+    # "qwen/qwen3.5-9b" must not be mistaken for provider/model syntax.
+    if provider is None and not (api_key or base_url):
+        parsed_provider, resolved_model = _split_model_spec(raw_model)
+        if provider_name is None:
+            provider_name = parsed_provider
+    else:
+        resolved_model = raw_model
 
     close_provider = provider is None
     if provider is None:

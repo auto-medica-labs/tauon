@@ -16,6 +16,6 @@ def get_weather(city: str) -> str:
 
 @define_agent
 def WeatherAgent() -> None:
-    use_model("gpt-5.6-luna")
+    use_model("openai/gpt-5.6-luna")
     use_tool(get_weather)
     use_prompt("prompt.md")

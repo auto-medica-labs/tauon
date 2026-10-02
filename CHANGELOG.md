@@ -1,5 +1,24 @@
 ## Changelog
 
+### 0.2.0
+
+Breaking changes:
+
+- `use_model()` now requires `provider/model` syntax. Bare model names no
+  longer resolve against a default provider; `use_model("gpt-4.1-mini")` now
+  raises a `RuntimeError`. Use `use_model("openai/gpt-4.1-mini")`, or pass an
+  explicit `provider_name=` (or `api_key=` + `base_url=`) to `run_agent()`.
+- The plain OpenAI-compatible fallback for unknown bare model names is removed.
+  A model missing from its named provider's catalog raises instead of being
+  silently routed to OpenAI.
+
+Also fixed:
+
+- Custom endpoints (`api_key=` / `base_url=`) and injected providers now pass
+  the model id through verbatim. Slash-containing ids such as OpenRouter's
+  `qwen/qwen3.5-9b` are no longer mistaken for `provider/model` syntax and
+  truncated to `qwen3.5-9b`.
+
 ### 0.1.5
 
 - Upgrade `tau-ai` from `>=0.3.13` to `>=0.4.7` (no Tauon API changes).

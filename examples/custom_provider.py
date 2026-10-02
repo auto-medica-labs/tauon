@@ -18,7 +18,7 @@ from tauon import define_agent, run_agent, use_model
 def SimpleAgent() -> str:
     # Note: this use_model() is overridden by model= in run_agent() below.
     # The model= kwarg wins over use_model() when both are set.
-    use_model("gpt-5.6-luna")
+    use_model("openai/gpt-5.6-luna")
     return "Reply concisely."
 
 

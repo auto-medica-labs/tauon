@@ -34,6 +34,17 @@ async def test_run_agent_requires_model() -> None:
 
 
 @pytest.mark.anyio
+async def test_run_agent_rejects_bare_model() -> None:
+    @define_agent
+    def BareModelAgent() -> str:
+        use_model("gpt-4.1-mini")
+        return "instructions"
+
+    with pytest.raises(RuntimeError, match="must be prefixed with a provider"):
+        await run_agent(BareModelAgent, "hi")
+
+
+@pytest.mark.anyio
 async def test_run_agent_returns_provider_text() -> None:
     @define_agent
     def EchoAgent() -> str:
@@ -70,6 +81,34 @@ async def test_run_agent_model_override() -> None:
     provider = FakeProvider(reply="ok")
     await run_agent(ModelAgent, "hi", provider=provider, model="test/new")
     # The fake provider ignores model, but the call should succeed.
+
+
+@pytest.mark.anyio
+async def test_custom_endpoint_keeps_slash_model_verbatim(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A custom endpoint model id is not treated as provider/model syntax."""
+
+    @define_agent
+    def SlashAgent() -> str:
+        use_model("openai/gpt-5.6-luna")
+        return "instructions"
+
+    captured: dict[str, Any] = {}
+
+    def capture_provider(**kwargs: Any) -> FakeProvider:
+        captured.update(kwargs)
+        return FakeProvider(reply="ok")
+
+    monkeypatch.setattr("tauon.agent.default_provider", capture_provider)
+    await run_agent(
+        SlashAgent,
+        "hi",
+        api_key="test-key",
+        base_url="https://openrouter.ai/api/v1",
+        model="qwen/qwen3.5-9b",
+    )
+    assert captured["model"] == "qwen/qwen3.5-9b"
 
 
 @pytest.mark.anyio

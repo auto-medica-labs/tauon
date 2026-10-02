@@ -15,7 +15,7 @@ def WeatherAgent() -> str:
     # export OPENROUTER_API_KEY=sk-... before use
     # use_model("openrouter/qwen/qwen3.5-9b") # or
     # export OPENAI_API_KEY=sk...
-    use_model("gpt-5.6-luna")
+    use_model("openai/gpt-5.6-luna")
     use_tool(get_weather)
     return (
         "You are a weather assistant. "
