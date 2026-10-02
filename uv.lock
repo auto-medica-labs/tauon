@@ -445,7 +445,7 @@ wheels = [
 
 [[package]]
 name = "tau-ai"
-version = "0.3.13"
+version = "0.4.7"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
@@ -458,14 +458,14 @@ dependencies = [
     { name = "textual" },
     { name = "typer" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/39/82/dbdb81d245ee38fb854bb594ac91b3690979e78b1552c6bb4562223f42b0/tau_ai-0.3.13.tar.gz", hash = "sha256:9c5cd239046c291e639b511c58a0b49fdade682c7ec46bbbf23a4c2d22591f05", size = 1029435, upload-time = "2026-08-21T10:21:37.777Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/06/a611ce99745afd5c73b94b9cbe459b2a648f9ef32a91294c382ce2e79952/tau_ai-0.4.7.tar.gz", hash = "sha256:f1c6c976589f8948f5898729dfad8b0f5001c0cf7840f8ac12c06f53357ca4fb", size = 1363998, upload-time = "2026-10-01T09:10:38.002Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/3b/c1/6ba6bf561b9bf0f533b08e37b21eb89a5fe33870f2c2855f3b1875fd265b/tau_ai-0.3.13-py3-none-any.whl", hash = "sha256:0a5fd95223f73ee2a2becd572561cf6f3d73a4920438880f008bb852b978bad7", size = 423788, upload-time = "2026-08-21T10:21:36.478Z" },
+    { url = "https://files.pythonhosted.org/packages/73/b7/9ec4250c314c20e2fe9b9210f79dc4bddd61f5794ef0ffe4dc60ed0ffdf0/tau_ai-0.4.7-py3-none-any.whl", hash = "sha256:4899ca3cc1c965e27c175fefad8754a68b441d9af49838f6624cc0e1adb59ce9", size = 598967, upload-time = "2026-10-01T09:10:36.637Z" },
 ]
 
 [[package]]
 name = "tauon"
-version = "0.1.4"
+version = "0.1.5"
 source = { editable = "." }
 dependencies = [
     { name = "anyio" },
@@ -486,7 +486,7 @@ dev = [
 requires-dist = [
     { name = "anyio", specifier = ">=4.0" },
     { name = "pydantic", specifier = ">=2.11" },
-    { name = "tau-ai", specifier = ">=0.3.13" },
+    { name = "tau-ai", specifier = ">=0.4.7" },
     { name = "typer", specifier = ">=0.12" },
 ]
 

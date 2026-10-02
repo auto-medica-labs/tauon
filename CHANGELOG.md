@@ -1,5 +1,13 @@
 ## Changelog
 
+### 0.1.5
+
+- Upgrade `tau-ai` from `>=0.3.13` to `>=0.4.7` (no Tauon API changes).
+  Notable upstream changes: provider catalog generated from models.dev, Z.AI
+  thinking serialization and Anthropic usage-accounting fixes, response-timing
+  metadata, and dynamic/extension provider runtimes. Tauon's public API and
+  behavior are unchanged.
+
 ### 0.1.4
 
 - Upgrade `tau-ai` to `>=0.3.13` (provider protocol now passes `session_id`).
